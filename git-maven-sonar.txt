@@ -1,0 +1,77 @@
+Etapes pour maven:
+- Telecharger un fichier zip d'une  version recente de maven
+
+- aller dans les variables d'anvironnement et crer une nouvele variable (maven_home) et y mettre le chemin vers le dossier bin
+
+- aller sur tools sur jenkins et creer une nouvelle installation maven  le chemin de maven_home ici sera juste le dossier deziper maven)
+
+
+Etapes pour sonarqube:
+
+- aller sur le serveur sonoarqube dans la rubrique "security" et gener un tokens
+
+- aller sur jenkis et telecharger le plugin SonarQube Scanner for Jenkins
+
+- aller creer un nouveau credentials pour sonarqube( type secret text) et y mettre la cles generer sur sonarqube
+
+- aller au niveau des parametres (System de jenkins) et creer un nouveau server sonarqube avec les credentials
+
+
+
+pipeline {
+    agent any
+
+    tools {
+        // Install the Maven version configured as "M3" and add it to the path.
+        maven "MAVEN_HOME"
+    }
+
+    stages {
+        stage('Etape 1: Verification du code sur git up') {
+            steps {
+                // Get some code from a GitHub repository
+                git 'https://github.com/divaarica/Devops'
+
+            }
+        }
+        stage('Etape 2: compilation') {
+            steps {
+                // Compile the code
+                bat 'mvn compile'
+
+            }
+        }
+        stage('Etape 3: test') {
+            steps {
+                // Test unitaires
+                bat 'mvn test'
+
+            }
+        }
+        // stage('Etape 4: build') {
+        //     steps {
+        //         // Test unitaires
+        //         bat 'mvn package'
+
+        //     }
+        // }
+        stage('Etape 5 SonarQube Analysis') {
+            steps {
+                script {
+                    // Utiliser SonarQube scanner
+                    withSonarQubeEnv('sonarqube') {
+                        bat 'mvn sonar:sonar'
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        failure {
+            // Actions à effectuer en cas d'échec
+            echo "Le pipeline a échoué. Veuillez vérifier les étapes précédentes pour des détails."
+        }
+    }
+    
+}

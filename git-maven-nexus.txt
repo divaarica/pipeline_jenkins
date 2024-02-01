@@ -1,0 +1,98 @@
+Etapes
+
+- aller sur nexus creer un repository maven_2
+
+- telecharger le plugin Nexus Artifact Uploader sur jenkins
+
+pipeline {
+    agent any
+
+    tools {
+        maven "MAVEN_HOME"
+    }
+    
+    triggers {
+        githubPush()
+    }
+    
+    environment {
+        NEXUS_VERSION = "nexus3"
+        NEXUS_PROTOCOL = "http"
+        NEXUS_URL = "localhost:8081"
+        NEXUS_REPOSITORY = "maven-nexus-repo"
+        NEXUS_CREDENTIAL_ID = "nexusLogin"
+        //JAR_FILE = 'target/Devops-1.0-SNAPSHOT.jar' // Spécifiez le nom correct du fichier JAR généré
+    }
+
+   stages {
+        stage('Etape 1: Verification du code sur git hup') {
+            steps {
+                git 'https://github.com/divaarica/Devops.git'
+
+            }
+        }
+        
+        
+        stage('Etape 2: build-package') {
+            steps {
+                bat 'mvn package -DskipTests=true'
+            }
+        }
+        
+        stage('Etape 3: Publier le projet dans le repos nexus') {
+            steps {
+                script {
+                    pom = readMavenPom file: "pom.xml";
+                    filesByGlob = findFiles(glob: "target/*.${pom.packaging}");
+                    echo "${filesByGlob[0].name} ${filesByGlob[0].path} ${filesByGlob[0].directory} ${filesByGlob[0].length} ${filesByGlob[0].lastModified}"
+                    artifactPath = filesByGlob[0].path;
+                    artifactExists = fileExists artifactPath;
+                    if(artifactExists) {
+                        echo "*** File: ${artifactPath}, group: ${pom.groupId}, packaging: ${pom.packaging}, version ${pom.version}";
+                        nexusArtifactUploader(
+                            nexusVersion: NEXUS_VERSION,
+                            protocol: NEXUS_PROTOCOL,
+                            nexusUrl: NEXUS_URL,
+                            groupId: pom.groupId,
+                            version: pom.version,
+                            repository: NEXUS_REPOSITORY,
+                            credentialsId: NEXUS_CREDENTIAL_ID,
+                            artifacts: [
+                                [artifactId: pom.artifactId,
+                                classifier: '',
+                                file: artifactPath,
+                                type: pom.packaging],
+                                [artifactId: pom.artifactId,
+                                classifier: '',
+                                file: "pom.xml",
+                                type: "pom"]
+                            ]
+                        );
+                    } else {
+                        error "*** File: ${artifactPath}, ne peut pas etre trouve";
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        failure {
+            // Actions à effectuer en cas d'échec
+            echo "Le pipeline a échoué. Veuillez vérifier les étapes précédentes pour des détails."
+        }
+    }
+    
+}
+
+etapes pour le webhook sur git hub:
+
+- il faut d'abord que si vous utiliser un sever en local , vous le mettez sur internet
+
+- on peut utiliser ngrok ou autre pour pouvoir avoir une adressse temporaire sur le net
+
+- aller au niveau des settins de votre repository git hub , aller sur webhook et cliquer sur add webhook
+
+- sur l'url mettre l'adresse temporaire donnee suvuie de ....../github-webhook/ 
+
+
